@@ -1,10 +1,10 @@
-# godot-stutter-crusher
+# Godot Stutter Crusher
 
 A simple tool to precompile all Godot shaders, and fix initial stutters easily! Although you have the Shader Baker option for exports, this option isn't available for Compatibility projects, which include browser games. When doing game jams, this meant that the first minutes of gameplay were much more stuttery, especially in larger games. 
 
 This is a quick solution that you can implement in 15 minutes, 
 
-### Installation 
+## Installation 
 
 This tool is basicall a small script with a few properties you can manipulate. These are:
 - Scene To Transition To: A `PackedScene` which represents your first scene, like your Main Menu for example;
