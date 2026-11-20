@@ -5,9 +5,10 @@ signal updated_progress(new_progress: float)
 signal finished_compiling
 
 @export var scene_to_transition_to: PackedScene
-@export var scenes_to_compile: Array[PackedScene]
 @export var progress_bar: ProgressBar
 @export var is_debug = false
+
+var scenes_to_compile: Array[String] = []
 
 var current_progress: float = 0.0
 var debug_text: RichTextLabel
@@ -29,8 +30,6 @@ func _enter_tree() -> void:
 	if progress_bar:
 		updated_progress.connect(progress_bar.set_value_no_signal)
 	
-	# get all 3D scenes
-	# get all 2D scenes
 	if is_debug:
 		var ui = Control.new()
 		ui.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -46,6 +45,9 @@ func _enter_tree() -> void:
 		button.connect("pressed", go_to_game)
 		button.set_anchors_preset(Control.PRESET_CENTER)
 		ui.add_child(button)
+		
+	# get all scenes
+	await store_scene_paths("res://")
 	
 	# instantiate 2D node and 3D node that are going to be the fathers of 
 	# all other nodes 
@@ -56,7 +58,7 @@ func _enter_tree() -> void:
 
 	# preprocess all scenes, and then add them to the actual scene
 	var loaded_scenes = []
-	for scene in scenes_to_compile: 
+	for scene in scenes_to_compile:
 		var new_scene = await preprocess_scene(scene)
 		loaded_scenes.append(new_scene)
 	
@@ -66,6 +68,23 @@ func _enter_tree() -> void:
 		
 	go_to_game()
 	
+func store_scene_paths(path: String):
+	var self_path = get_tree().current_scene.scene_file_path
+	var resources = ResourceLoader.list_directory(path)
+	
+	for res in resources:
+		# skip hidden folders
+		if res[0] == '.': 
+			continue
+			
+		var curr_path = path + res
+		if res.ends_with("/"): 
+			store_scene_paths(curr_path)
+		elif res.ends_with('.tscn'): 
+			if is_debug:
+				debug_text.text += "Adding Scene to compile: " + curr_path + "\n"
+			scenes_to_compile.append(curr_path)
+
 # go through the instanced, but not added scene,
 # see how many nodes there are, and make sure that 
 # things like sound emitting nodes are muted
@@ -87,7 +106,7 @@ func process_node(node: Node):
 		processed_nodes += 1
 		node.visible = true
 	
-	await get_tree().create_timer(0.05).timeout
+	await get_tree().create_timer(0.01).timeout
 	var percent = (float(processed_nodes) / float(total_nodes)) * 100.0
 	emit_signal("updated_progress", percent)
 	print("processed nodes " + str(processed_nodes) + " total nodes " + str(total_nodes), " emitting " + str(percent))
@@ -113,10 +132,10 @@ func process_node(node: Node):
 	if "visible" in node: 
 		node.visible = false
 
-func preprocess_scene(scene: PackedScene): 
-	var loaded_scene = scene.instantiate()
+func preprocess_scene(scene: String): 
+	var loaded_scene = load(scene).instantiate()
 	preprocess_node(loaded_scene)
-	if loaded_scene is Node3D: 
+	if loaded_scene is Node3D:
 		if is_debug:
 			debug_text.text += "Instancing Scene:" + loaded_scene.name + "\n"
 			
@@ -134,7 +153,3 @@ func _process(delta: float) -> void:
 	for audio_stream in audio_streams:
 		audio_stream.playing = false
 		audio_stream.volume_db = 0
-
-func _exit_tree() -> void:
-	# Clean-up of the plugin goes here.
-	print("exit?")
